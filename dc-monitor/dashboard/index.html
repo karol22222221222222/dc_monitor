@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:mso="urn:schemas-microsoft-com:office:office" xmlns:msdt="uuid:C2F41010-65B3-11d1-A29F-00AA00C14882">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>DC Monitor Dashboard</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --card-bg: #ffffff;
+      --text-main: #1e293b;
+      --text-muted: #64748b;
+      --border: #e2e8f0;
+      --primary: #3b82f6;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --error: #ef4444;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text-main);
+      line-height: 1.5;
+      padding-bottom: 40px;
+    }
+
+    header {
+      background: var(--card-bg);
+      padding: 20px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+    }
+
+    header h1 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--text-main);
+      letter-spacing: -0.5px;
+    }
+
+    #last-update {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    /* ── Summary Bar ── */
+    #summary {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 16px;
+      padding: 24px 32px;
+    }
+
+    .stat-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+    }
+
+    .stat-card .label {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+    }
+
+    .stat-card .value {
+      font-size: 1.75rem;
+      font-weight: 700;
+      margin-top: 4px;
+    }
+
+    .stat-card.critical .value { color: var(--error); }
+    .stat-card.warning  .value { color: var(--warning); }
+    .stat-card.ok       .value { color: var(--success); }
+    .stat-card.info     .value { color: var(--primary); }
+
+    /* ── Server Grid ── */
+    #grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+      gap: 20px;
+      padding: 0 32px;
+    }
+
+    .server-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 20px;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .server-card:hover {
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
+      transform: translateY(-2px);
+    }
+
+    /* Indicador sutil de estado en el borde izquierdo */
+    .server-card.status-critical { border-left: 4px solid var(--error); }
+    .server-card.status-warning  { border-left: 4px solid var(--warning); }
+    .server-card.status-ok       { border-left: 4px solid var(--success); }
+
+    .server-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 8px;
+    }
+
+    .server-name {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .server-role {
+      font-size: 0.65rem;
+      background: #f1f5f9;
+      padding: 4px 10px;
+      border-radius: 20px;
+      color: var(--text-muted);
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .server-meta {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-bottom: 20px;
+    }
+
+    /* ── Metric Bars ── */
+    .metric { margin-bottom: 12px; }
+
+    .metric-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.75rem;
+      margin-bottom: 6px;
+    }
+
+    .metric-label { color: var(--text-muted); font-weight: 500; }
+    .metric-value { font-weight: 700; }
+
+    .bar-bg {
+      background: #f1f5f9;
+      border-radius: 10px;
+      height: 6px;
+      overflow: hidden;
+    }
+
+    .bar-fill {
+      height: 100%;
+      border-radius: 10px;
+      transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .bar-ok       { background: var(--success); }
+    .bar-warning  { background: var(--warning); }
+    .bar-critical { background: var(--error); }
+
+    .metric-value.ok       { color: var(--success); }
+    .metric-value.warning  { color: var(--warning); }
+    .metric-value.critical { color: var(--error); }
+
+    /* ── Status Badge ── */
+    .status-badge {
+      display: inline-block;
+      font-size: 0.65rem;
+      padding: 2px 8px;
+      border-radius: 6px;
+      text-transform: uppercase;
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
+
+    .badge-online      { background: #dcfce7; color: #166534; }
+    .badge-offline     { background: #fee2e2; color: #991b1b; }
+    .badge-maintenance { background: #fef3c7; color: #92400e; }
+
+    /* ── Loading / Error ── */
+    #loading {
+      text-align: center;
+      padding: 100px;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    #error-banner {
+      display: none;
+      background: #fef2f2;
+      border-bottom: 1px solid #fecaca;
+      color: #dc2626;
+      padding: 12px 32px;
+      font-size: 0.875rem;
+      font-weight: 500;
+      text-align: center;
+    }
+  </style>
+
+<!--[if gte mso 9]><xml>
+<mso:CustomDocumentProperties>
+<mso:xd_Signature msdt:dt="string"></mso:xd_Signature>
+<mso:display_urn_x003a_schemas-microsoft-com_x003a_office_x003a_office_x0023_Editor msdt:dt="string">Jorge Javier Pedrozo Romero</mso:display_urn_x003a_schemas-microsoft-com_x003a_office_x003a_office_x0023_Editor>
+<mso:Order msdt:dt="string">4100.00000000000</mso:Order>
+<mso:xd_ProgID msdt:dt="string"></mso:xd_ProgID>
+<mso:_ExtendedDescription msdt:dt="string"></mso:_ExtendedDescription>
+<mso:display_urn_x003a_schemas-microsoft-com_x003a_office_x003a_office_x0023_Author msdt:dt="string">Jorge Javier Pedrozo Romero</mso:display_urn_x003a_schemas-microsoft-com_x003a_office_x003a_office_x0023_Author>
+<mso:ComplianceAssetId msdt:dt="string"></mso:ComplianceAssetId>
+<mso:TemplateUrl msdt:dt="string"></mso:TemplateUrl>
+<mso:ReferenceId msdt:dt="string"></mso:ReferenceId>
+<mso:ContentTypeId msdt:dt="string">0x0101003ED55CB53F1C9145ADFD65101002DB81</mso:ContentTypeId>
+<mso:TriggerFlowInfo msdt:dt="string"></mso:TriggerFlowInfo>
+<mso:_SourceUrl msdt:dt="string"></mso:_SourceUrl>
+<mso:_SharedFileIndex msdt:dt="string"></mso:_SharedFileIndex>
+</mso:CustomDocumentProperties>
+</xml><![endif]-->
+</head>
+<body>
+
+<header>
+  <h1>DC Monitor</h1>
+  <span id="last-update">Connecting...</span>
+</header>
+
+<div id="error-banner">
+  Cannot reach the API. Make sure DC Monitor is running and the API Key is correct.
+</div>
+
+<div id="summary">
+  <div class="stat-card info">
+    <div class="label">Servers</div>
+    <div class="value" id="total-servers">--</div>
+  </div>
+  <div class="stat-card ok">
+    <div class="label">Online</div>
+    <div class="value" id="online-servers">--</div>
+  </div>
+  <div class="stat-card critical">
+    <div class="label">Critical Alerts</div>
+    <div class="value" id="critical-alerts">--</div>
+  </div>
+  <div class="stat-card warning">
+    <div class="label">Warnings</div>
+    <div class="value" id="warning-alerts">--</div>
+  </div>
+</div>
+
+<div id="loading">Loading server data...</div>
+<div id="grid"></div>
+
+<script>
+  const API      = "http://localhost:8000";
+  const API_KEY  = "dc-monitor-secret-key";
+  const HEADERS  = { "X-API-Key": API_KEY };
+  const INTERVAL = 10000; // ms
+
+  // ── Helpers ──────────────────────────────────────────────────────────────
+
+  function colorClass(value, warn, crit) {
+    if (value >= crit)  return "critical";
+    if (value >= warn)  return "warning";
+    return "ok";
+  }
+
+  function metricBar(label, value, unit, warn, crit) {
+    const cls = colorClass(value, warn, crit);
+    const pct = Math.min(value, 100);
+    return `
+      <div class="metric">
+        <div class="metric-header">
+          <span class="metric-label">${label}</span>
+          <span class="metric-value ${cls}">${value.toFixed(1)}${unit}</span>
+        </div>
+        <div class="bar-bg">
+          <div class="bar-fill bar-${cls}" style="width:${pct}%"></div>
+        </div>
+      </div>`;
+  }
+
+  function statusBadge(status) {
+    return `<span class="status-badge badge-${status}">${status}</span>`;
+  }
+
+  // ── Fetch ────────────────────────────────────────────────────────────────
+
+  async function fetchJSON(path) {
+    const res = await fetch(API + path, { headers: HEADERS });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
+  }
+
+  // ── Render ───────────────────────────────────────────────────────────────
+
+  function renderCard(server, metric, alertStatus) {
+    const hasAlert = alertStatus === "critical" || alertStatus === "warning";
+    const cardClass = hasAlert ? `status-${alertStatus}` : "status-ok";
+
+    const tempColor = colorClass(metric.temperature, 75, 90);
+
+    return `
+      <div class="server-card ${cardClass}">
+        <div class="server-header">
+          <span class="server-name">${server.hostname}</span>
+          <span class="server-role">${server.role}</span>
+        </div>
+        ${statusBadge(server.status)}
+        <div class="server-meta">
+          ${server.ip_address} &nbsp;|&nbsp;
+          Rack ${server.rack} &nbsp;|&nbsp;
+          ${server.datacenter_zone} &nbsp;|&nbsp;
+          ${server.cpu_cores} cores / ${server.ram_gb}GB RAM
+        </div>
+        ${metricBar("CPU",         metric.cpu_usage,    "%",  80, 95)}
+        ${metricBar("Memory",      metric.memory_usage, "%",  85, 95)}
+        ${metricBar("Disk",        metric.disk_usage,   "%",  75, 90)}
+        <div class="metric">
+          <div class="metric-header">
+            <span class="metric-label">Temperature</span>
+            <span class="metric-value ${tempColor}">${metric.temperature.toFixed(1)}°C</span>
+          </div>
+          <div class="bar-bg">
+            <div class="bar-fill bar-${tempColor}"
+                 style="width:${Math.min(metric.temperature / 120 * 100, 100)}%">
+            </div>
+          </div>
+        </div>
+        <div class="metric">
+          <div class="metric-header">
+            <span class="metric-label">Network In</span>
+            <span class="metric-value ok">${metric.network_in.toFixed(1)} MB/s</span>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  // ── Main Loop ────────────────────────────────────────────────────────────
+
+  async function refresh() {
+    try {
+      const [servers, alertSummary] = await Promise.all([
+        fetchJSON("/servers/"),
+        fetchJSON("/alerts/summary/open"),
+      ]);
+
+      document.getElementById("error-banner").style.display = "none";
+      document.getElementById("loading").style.display      = "none";
+
+      // Update summary bar
+      const online = servers.filter(s => s.status === "online").length;
+      document.getElementById("total-servers").textContent   = servers.length;
+      document.getElementById("online-servers").textContent  = online;
+      document.getElementById("critical-alerts").textContent = alertSummary.critical;
+      document.getElementById("warning-alerts").textContent  = alertSummary.warning;
+
+      // Fetch latest metric for each server in parallel
+      const metricResults = await Promise.allSettled(
+        servers.map(s => fetchJSON(`/servers/${s.id}/metrics/latest`))
+      );
+
+      // Fetch open alerts per server
+      const alertResults = await Promise.allSettled(
+        servers.map(s => fetchJSON(`/alerts/?server_id=${s.id}&status=open&limit=1`))
+      );
+
+      // Build cards
+      const grid = document.getElementById("grid");
+      grid.innerHTML = servers.map((server, i) => {
+        const metricResult = metricResults[i];
+        if (metricResult.status === "rejected") return "";
+
+        const metric = metricResult.value;
+        const alerts = alertResults[i].status === "fulfilled"
+          ? alertResults[i].value : [];
+
+        const alertStatus = alerts.length > 0 ? alerts[0].severity : "ok";
+        return renderCard(server, metric, alertStatus);
+      }).join("");
+
+      document.getElementById("last-update").textContent =
+        "Last update: " + new Date().toLocaleTimeString();
+
+    } catch (err) {
+      document.getElementById("error-banner").style.display = "block";
+      document.getElementById("last-update").textContent = "Connection error";
+      console.error(err);
+    }
+  }
+
+  refresh();
+  setInterval(refresh, INTERVAL);
+</script>
+</body>
+</html>
+

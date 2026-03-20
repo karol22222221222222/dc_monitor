@@ -50,13 +50,16 @@ def simulate_value(baseline: float, volatility: float, t: float) -> float:
 
 def get_server_ids() -> dict:
     url = f"{API_BASE}/servers/"
-
+    req = urllib.request.Request(
+        url,
+        headers={"X-API-Key": os.environ.get("API_KEY", "dc-monitor-secret-key")},
+    )
     try:
-        with urllib.request.urlopen(url, timeout=5) as resp:
+        with urllib.request.urlopen(req, timeout=5) as resp:
             servers = json.loads(resp.read())
             return {s["hostname"]: s["id"] for s in servers}
     except Exception as e:
-        logger.error(f"Could not fetch servers: {e}")
+        logger.error(f"[simulator]Could not fetch servers: {e}")
         return {}
 
 
@@ -67,7 +70,8 @@ def post_metric(server_id: int, payload: dict):
     req = urllib.request.Request(
         url,
         data=data,
-        headers={"Content-Type": "application/json"},
+        headers={"Content-Type": "application/json",
+                 "X-API-Key": os.environ.get("API_KEY", "dc-monitor-secret-key")},
         method="POST"
     )
 
@@ -75,9 +79,9 @@ def post_metric(server_id: int, payload: dict):
         with urllib.request.urlopen(req, timeout=5) as resp:
             return resp.status
     except urllib.error.HTTPError as e:
-        logger.error(f"HTTP {e.code} for server {server_id}")
+        logger.error(f"[simulator]HTTP {e.code} for server {server_id}")
     except Exception as e:
-        logger.error(f"Error posting to server {server_id}: {e}")
+        logger.error(f"[simulator]Error posting to server {server_id}: {e}")
 
 def wait_for_api(retries: int = 15, delay: int = 3) -> bool:
     logger.info(f"Waiting for API at {API_BASE}...")

@@ -1,5 +1,6 @@
 import os
 import json
+import telegram
 import redis
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
@@ -28,7 +29,7 @@ THRESHOLDS = {
     "cpu_usage": {"warning": 80.0,
     "critical": 95.0},
     "memory_usage": {"warning": 85.0,
-    "critical": 95.0},
+    "critical": 86.0},
     "disk_usage": {"warning": 75.0,
     "critical": 90.0},
     "temperature": {"warning": 75.0,
@@ -103,6 +104,38 @@ def _auto_generate_alerts(db: Session, server: Server, metric: Metric):
                     f"back to normal ({value:.1f}). Alert #{open_alert.id} resolved."
                 )
             #db.add(alert)
+            if severity:
+                existing = (
+                    db.query(Alert)
+                    .filter(
+                        Alert.server_id == server.id,
+                        Alert.metric == metric_name,
+                        Alert.status == AlertStatus.open,
+                    )
+                    .first()
+                )
+                if not existing:
+                    alert = Alert(
+                        server_id=server.id,
+                        severity=severity,
+                        metric=metric_name,
+                        message=(
+                            f"{server.hostname}: {metric_name.replace('_', ' ').title()} "
+                            f"is {value:.1f} (threshold: {threshold})"
+                        ),
+                        value=value,
+                        threshold=threshold,
+                    )
+                    db.add(alert)
+                    # Send Telegram notification for critical alerts only
+                    if severity == AlertSeverity.critical:
+                        telegram.send_alert(
+                            severity=severity.value,
+                            hostname=server.hostname,
+                            metric=metric_name,
+                            value=value,
+                            threshold=threshold,
+                        )
 
 
 @router.post("/", response_model=MetricOut, status_code=201,

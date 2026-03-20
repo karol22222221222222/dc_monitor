@@ -8,6 +8,8 @@ from routers import servers, metrics, alerts, compare
 
 from fastapi import FastAPI, Depends
 from auth import require_api_key
+from fastapi.middleware.cors import CORSMiddleware
+
 
 def seed_database(db: Session):
     if db.query(models.Server).count() > 0:
@@ -75,6 +77,13 @@ app = FastAPI(
     ),
     version="1.0.0",
     lifespan=lifespan,
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 app.include_router(servers.router, dependencies=[Depends(require_api_key)])
